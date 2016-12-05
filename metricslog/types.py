@@ -1,0 +1,161 @@
+import abc
+import decimal
+
+from collections import defaultdict
+
+
+UNSET = object()
+
+
+class Type(metaclass=abc.ABCMeta):
+
+    @abc.abstractmethod
+    def accept(self, visitor):
+        pass
+
+    @abc.abstractmethod
+    def clear(self):
+        pass
+
+
+class SetMixin:
+    dirty = False
+    __value__ = UNSET
+
+    def set(self, value):
+        self.__value__ = value
+        self.dirty = True
+
+    def clear(self):
+        if self.__value__ is not UNSET:
+            del self.__value__
+        if self.dirty:
+            del self.dirty
+
+
+class AccMixin(SetMixin):
+    flush = False
+
+    @abc.abstractproperty
+    def __default__(self):
+        pass
+
+    def inc(self, value):
+        if self.__value__ is UNSET:
+            self.__value__ = self.__default__
+        self.__value__ += value
+        self.dirty = True
+        self.flush = True
+
+    def clear(self):
+        super().clear()
+        if self.flush:
+            del self.flush
+
+
+class Integer(AccMixin, Type):
+    __default__ = 0
+
+    def accept(self, visitor):
+        return visitor.visit_integer(self)
+
+
+class Float(AccMixin, Type):
+    __default__ = 0.0
+
+    def accept(self, visitor):
+        return visitor.visit_float(self)
+
+
+class Decimal(AccMixin, Type):
+    __default__ = decimal.Decimal()
+
+    def accept(self, visitor):
+        return visitor.visit_decimal(self)
+
+
+class String(SetMixin, Type):
+
+    def accept(self, visitor):
+        return visitor.visit_string(self)
+
+
+class Timestamp(SetMixin, Type):
+
+    def accept(self, visitor):
+        return visitor.visit_timestamp(self)
+
+
+class MapMeta(abc.ABCMeta):
+
+    def __getitem__(cls, params):
+        key_type, value_type = params
+        if not isinstance(key_type, type):
+            raise TypeError('Key type is not a type: {!r}'
+                            .format(key_type))
+        if not isinstance(value_type, type):
+            raise TypeError('Value type is not a type: {!r}'
+                            .format(value_type))
+        type_ = cls.__class__(cls.__name__, cls.__bases__, dict(cls.__dict__))
+        type_.__key_type__ = key_type
+        type_.__value_type__ = value_type
+        return type_
+
+
+class Map(Type, metaclass=MapMeta):
+    __key_type__ = None
+    __value_type__ = None
+
+    def __init__(self):
+        if not self.__key_type__ or not self.__value_type__:
+            raise TypeError('Can not instantiate Map without params')
+        self.__items__ = defaultdict(self.__value_type__)
+
+    def __getitem__(self, key):
+        if not isinstance(key, self.__key_type__):
+            raise TypeError('Invalid key type: {!r}; expected: {!r}'
+                            .format(type(key), self.__key_type__))
+        return self.__items__[key]
+
+    def accept(self, visitor):
+        return visitor.visit_map(self)
+
+    def clear(self):
+        self.__items__.clear()
+
+
+class Field:
+
+    def __init__(self, name, type_):
+        self.name = name
+        self.type = type_
+
+
+class RecordMeta(abc.ABCMeta):
+
+    def __new__(mcs, name, bases, params):
+        cls = super().__new__(mcs, name, bases, params)
+        field_types = {}
+        for name, attr in params.items():
+            if isinstance(attr, Field):
+                field_types[name] = attr
+        cls.__field_types__ = field_types
+        return cls
+
+
+class Record(Type, metaclass=RecordMeta):
+    __field_types__ = None
+
+    def __init__(self):
+        self.__fields__ = {
+            name: field.type()
+            for name, field in self.__field_types__.items()
+        }
+        self.__dict__.update(self.__fields__)
+
+    def accept(self, visitor):
+        return visitor.visit_record(self)
+
+    def clear(self):
+        for field_type in self.__fields__.values():
+            field_type.clear()

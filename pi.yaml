@@ -1,0 +1,21 @@
+- !Image
+  name: test
+  from: !DockerImage alpine:3.4
+  repository: reg.local/metricslog.test
+  provision-with: !AnsibleTasks
+    - raw: apk add --no-cache python3
+    - pip: name={{item}} executable=pip3 extra_args='--no-cache-dir'
+      with_items:
+        - pytest==3.0.4
+        - flake8==3.2.1
+
+- !ShellCommand
+  name: test
+  description: Test and lint codebase
+  params:
+    - !Argument {name: tests, default: metricslog}
+  image: test
+  eval: >
+    py.test -q --tb=native {{tests}}
+    && flake8 --max-line-length=80 metricslog
+    && echo "Lint - ok"
