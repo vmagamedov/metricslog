@@ -63,7 +63,7 @@ def test_record():
         chevaux = Field('charqui', Integer)
 
     metric = Sickly()
-    assert metric.__fields__ == {'chevaux': metric.chevaux}
+    assert metric.__fields__ == {'charqui': metric.chevaux}
     assert metric.chevaux.dirty is False
     metric.chevaux.inc(1)
     assert metric.chevaux.dirty is True

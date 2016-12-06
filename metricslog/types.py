@@ -20,6 +20,8 @@ class Type(metaclass=abc.ABCMeta):
 
 class SetMixin:
     dirty = False
+    flush = False
+
     __value__ = UNSET
 
     def set(self, value):
@@ -31,10 +33,17 @@ class SetMixin:
             del self.__value__
         if self.dirty:
             del self.dirty
+        if self.flush:
+            del self.flush
+
+    def was_detected(self):
+        if self.dirty:
+            del self.dirty
+        if self.flush:
+            self.clear()
 
 
 class AccMixin(SetMixin):
-    flush = False
 
     @abc.abstractproperty
     def __default__(self):
@@ -46,11 +55,6 @@ class AccMixin(SetMixin):
         self.__value__ += value
         self.dirty = True
         self.flush = True
-
-    def clear(self):
-        super().clear()
-        if self.flush:
-            del self.flush
 
 
 class Integer(AccMixin, Type):
@@ -148,10 +152,13 @@ class Record(Type, metaclass=RecordMeta):
 
     def __init__(self):
         self.__fields__ = {
-            name: field.type()
-            for name, field in self.__field_types__.items()
+            field.name: field.type()
+            for field in self.__field_types__.values()
         }
-        self.__dict__.update(self.__fields__)
+        self.__dict__.update({
+            name: self.__fields__[field.name]
+            for name, field in self.__field_types__.items()
+        })
 
     def accept(self, visitor):
         return visitor.visit_record(self)
