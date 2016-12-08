@@ -19,3 +19,11 @@
     py.test -q --tb=native {{tests}}
     && flake8 --max-line-length=80 metricslog
     && echo "Lint - ok"
+
+- !ShellCommand
+  name: logstash-dev
+  network-name: logstash
+  image: !DockerImage logstash:5.0.1
+  volumes:
+    - !LocalPath { from: logstash.conf, to: /etc/logstash/conf.d/logstash.conf }
+  eval: logstash -f /etc/logstash/conf.d/logstash.conf
