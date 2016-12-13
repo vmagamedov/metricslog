@@ -27,3 +27,28 @@
   volumes:
     - !LocalPath { from: logstash.conf, to: /etc/logstash/conf.d/logstash.conf }
   eval: logstash -f /etc/logstash/conf.d/logstash.conf
+
+- !Image
+  name: temp
+  from: !DockerImage ubuntu:xenial
+  repository: reg.local/metricslog.temp
+  provision-with: !AnsibleTasks
+    - raw: apt-get update
+    - raw: apt-get install -y rsyslog-elasticsearch python3-pip
+    - raw: rm -rf /var/lib/apt/lists/*
+    - raw: LANG=C pip3 install --no-cache-dir --disable-pip-version-check python-logstash
+
+- !ShellCommand
+  name: example
+  image: temp
+  volumes:
+    - !LocalPath { from: rsyslog.conf, to: /etc/rsyslog.conf }
+    - !LocalPath { from: ., to: /src }
+  eval: >
+    /usr/sbin/rsyslogd -f /etc/rsyslog.conf -N1 &&
+    /usr/sbin/rsyslogd -f /etc/rsyslog.conf &&
+    python3 /src/example.py &&
+    echo "\\nmessages:" &&
+    cat /var/log/messages &&
+    echo "\\ndocuments:" &&
+    cat /var/log/documents

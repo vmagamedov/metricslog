@@ -20,10 +20,10 @@ class MetricsFormatter(logging.Formatter):
     def __init__(self, default_extra=None, fqdn=False):
         super().__init__()
         self.default_extra = default_extra or {}
-        if fqdn:
-            self.host = socket.getfqdn()
-        else:
-            self.host = socket.gethostname()
+        # if fqdn:
+        #     self.host = socket.getfqdn()
+        # else:
+        #     self.host = socket.gethostname()
 
     def _format_timestamp(self, time):
         return (datetime.datetime.utcfromtimestamp(time)
@@ -41,8 +41,8 @@ class MetricsFormatter(logging.Formatter):
         message = {
             '@timestamp': self._format_timestamp(record.created),
             '@version': '1',
-            'host': self.host,
-            'type': 'metricslog',
+            # 'host': self.host,
+            # 'type': 'metricslog',
         }
 
         # add default extra fields
