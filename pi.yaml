@@ -9,6 +9,13 @@
         - pytest==3.0.4
         - flake8==3.2.1
 
+- !Service
+  name: elasticsearch
+  image: !DockerImage elasticsearch:5.1.1
+  ports:
+    - !Expose { port: 9200, as: 9200 }
+    - !Expose { port: 9300, as: 9300 }
+
 - !ShellCommand
   name: test
   description: Test and lint codebase
@@ -47,8 +54,4 @@
   eval: >
     /usr/sbin/rsyslogd -f /etc/rsyslog.conf -N1 &&
     /usr/sbin/rsyslogd -f /etc/rsyslog.conf &&
-    python3 /src/example.py &&
-    echo "\\nmessages:" &&
-    cat /var/log/messages &&
-    echo "\\ndocuments:" &&
-    cat /var/log/documents
+    python3 /src/example.py
