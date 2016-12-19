@@ -32,7 +32,7 @@
   network-name: logstash
   image: !DockerImage logstash:5.0.1
   volumes:
-    - !LocalPath { from: logstash.conf, to: /etc/logstash/conf.d/logstash.conf }
+    - !LocalPath { from: examples/conf/logstash.conf, to: /etc/logstash/conf.d/logstash.conf }
   eval: logstash -f /etc/logstash/conf.d/logstash.conf
 
 - !Image
@@ -46,12 +46,19 @@
     - raw: LANG=C pip3 install --no-cache-dir --disable-pip-version-check python-logstash
 
 - !ShellCommand
-  name: example
+  name: example-logstash
+  image: temp
+  eval: python3 -m examples.logstash
+
+- !ShellCommand
+  name: example-syslog
   image: temp
   volumes:
-    - !LocalPath { from: rsyslog.conf, to: /etc/rsyslog.conf }
+    - !LocalPath { from: examples/conf/rsyslog.conf, to: /etc/rsyslog.conf }
     - !LocalPath { from: ., to: /src }
+  environ:
+    PYTHONPATH: /src
   eval: >
     /usr/sbin/rsyslogd -f /etc/rsyslog.conf -N1 &&
     /usr/sbin/rsyslogd -f /etc/rsyslog.conf &&
-    python3 /src/example.py
+    python3 -m examples.syslog
