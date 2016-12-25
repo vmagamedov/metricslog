@@ -53,6 +53,8 @@ class LogstashFormatter(logging.Formatter):
                 yield key, _json_value(value)
 
     def format(self, record):
+        record.message = record.getMessage()
+
         message = {
             '@timestamp': self._timestamp_format(record.created),
             '@version': '1',
@@ -63,6 +65,9 @@ class LogstashFormatter(logging.Formatter):
 
         # add extra fields
         message.update(self._get_extra(record))
+
+        # TODO: add exception info
+
         return json.dumps(message)
 
 
@@ -119,7 +124,7 @@ class ColorFormatter(logging.Formatter):
             'created': self.formatTime(record),
             'level_name': record.levelname,
             'name': record.name,
-            'msg': record.getMessage() + (self.msg_sep if extra else ''),
+            'message': record.getMessage() + (self.msg_sep if extra else ''),
             'extra': extra,
         }
         s = ' '.join(proc(message[key], record.levelname, self._codes)

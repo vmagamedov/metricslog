@@ -86,16 +86,16 @@ PROC_MAP = {
     'created': simple_colorizer,
     'level_name': simple_colorizer,
     'name': simple_colorizer,
-    'msg': simple_colorizer,
+    'message': simple_colorizer,
     'extra': kv_colorizer,
 }
 
 DEFAULT_FMT = [
-    ('created', 'msg'),
+    ('created', 'message'),
     ('level_name', 'level'),
-    ('name', 'msg'),
-    ('msg', 'msg'),
-    ('extra', ['key', 'msg']),
+    ('name', 'message'),
+    ('message', 'message'),
+    ('extra', ['key', 'message']),
 ]
 
 DEFAULT_STYLES = {
@@ -106,7 +106,7 @@ DEFAULT_STYLES = {
         'ERROR': 'red',
         'CRITICAL': 'bold_red',
     },
-    'msg': {
+    'message': {
         'DEBUG': 'cyan',
         'INFO': 'white',
         'WARNING': 'white',
