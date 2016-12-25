@@ -1,6 +1,12 @@
 import json
 import logging
 import datetime
+import traceback
+
+from operator import itemgetter
+from functools import partial
+
+from ._colors import DEFAULT_FMT, DEFAULT_STYLES, PROC_MAP, CODES, NO_CODES
 
 
 _SKIP_ATTRS = {
@@ -69,3 +75,56 @@ class CEELogstashFormatter(LogstashFormatter):
 
     def format(self, record):
         return '{}: @cee: '.format(self.app_name) + super().format(record)
+
+
+class ColorFormatter(logging.Formatter):
+
+    def __init__(self, isatty, msg_sep='', fmt=None, date_fmt=None,
+                 styles=None):
+        super().__init__(datefmt=date_fmt)
+        self.isatty = isatty
+        self.msg_sep = msg_sep
+        self.fmt = fmt or DEFAULT_FMT
+        self.styles = styles or DEFAULT_STYLES
+
+        procs = []
+        for key, style in self.fmt:
+            procs.append((key, PROC_MAP[key](self.styles, style)))
+        self._procs = procs
+        self._codes = CODES if isatty else NO_CODES
+
+        self._highlight = lambda s: s
+        if self.isatty:
+            try:
+                self._highlight = self._setup_highlight()
+            except ImportError:
+                pass
+
+    def _setup_highlight(self):
+        from pygments import highlight
+        from pygments.lexers.python import PythonTracebackLexer
+        from pygments.formatters.terminal import TerminalFormatter
+
+        return partial(highlight, lexer=PythonTracebackLexer(),
+                       formatter=TerminalFormatter())
+
+    def _get_extra(self, record):
+        for key, value in record.__dict__.items():
+            if key not in _SKIP_ATTRS:
+                yield key, _json_value(value)
+
+    def format(self, record):
+        extra = sorted(self._get_extra(record), key=itemgetter(0))
+        message = {
+            'created': self.formatTime(record),
+            'level_name': record.levelname,
+            'name': record.name,
+            'msg': record.getMessage() + (self.msg_sep if extra else ''),
+            'extra': extra,
+        }
+        s = ' '.join(proc(message[key], record.levelname, self._codes)
+                     for key, proc in self._procs)
+        if record.exc_info:
+            exc = ''.join(traceback.format_exception(*record.exc_info))
+            s += '\n' + self._highlight(exc).rstrip('\n')
+        return s
