@@ -66,7 +66,9 @@ class LogstashFormatter(logging.Formatter):
         # add extra fields
         message.update(self._get_extra(record))
 
-        # TODO: add exception info
+        if record.exc_info:
+            exc = ''.join(traceback.format_exception(*record.exc_info))
+            message['exception'] = exc
 
         return json.dumps(message)
 
