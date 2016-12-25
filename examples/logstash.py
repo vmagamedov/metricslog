@@ -34,7 +34,7 @@ plain_log.addHandler(UDPMetricsHandler(
     'logstash', 5959,
     LogstashFormatter(
         mapping={
-            'msg': 'msg',
+            'message': 'message',
             'name': 'logger',
         },
         default_extra={

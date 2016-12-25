@@ -24,7 +24,7 @@ metrics = Manager(Metrics(), interval_size=2, logger_name=metrics_log.name)
 plain_log_handler = SysLogHandler('/dev/log', facility='local3')
 plain_log_handler.formatter = CEELogstashFormatter(
     'my-app-name',
-    mapping={'msg': 'msg', 'name': 'logger'},
+    mapping={'message': 'message', 'name': 'logger'},
     msec=True,
 )
 
