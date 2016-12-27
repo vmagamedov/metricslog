@@ -35,7 +35,7 @@ class Manager:
                 last_second = (interval + 1) * self._interval_size - 1
                 fn, lno, func, sinfo = self._logger.findCaller()
                 record = self._logger.makeRecord(
-                    self._logger.name, logging.INFO, fn, lno, 'metrics', [],
+                    self._logger.name, logging.INFO, fn, lno, '-', [],
                     None, func=None, extra=data, sinfo=sinfo,
                 )
                 record.created = last_second
