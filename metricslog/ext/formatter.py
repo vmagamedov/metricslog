@@ -1,5 +1,7 @@
+import os
 import sys
 import json
+import socket
 import logging
 import datetime
 import traceback
@@ -18,7 +20,7 @@ _SKIP_ATTRS = {
     'stack_info',
 }
 
-_SIMPLE_TYPES = (str, bool, dict, float, int, list, type(None))
+_SIMPLE_TYPES = (str, bool, dict, float, int, list)
 
 
 def _json_value(value):
@@ -35,12 +37,23 @@ def _datetime_from_timestamp_msec(timestamp):
             .strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z')
 
 
+def _maybe_special(value):
+    if not isinstance(value, str):
+        return value
+    elif value == '<pid>':
+        return os.getpid()
+    elif value == '<host>':
+        return socket.gethostname()
+    else:
+        return value
+
+
 class LogstashFormatter(logging.Formatter):
 
-    def __init__(self, mapping=None, default_extra=None, msec=False):
+    def __init__(self, mapping=None, defaults=None, msec=False):
         super().__init__()
         self.mapping = mapping or {}
-        self.default_extra = default_extra or {}
+        self.defaults = defaults or {}
         if msec:
             self._timestamp_format = _datetime_from_timestamp_msec
         else:
@@ -48,6 +61,8 @@ class LogstashFormatter(logging.Formatter):
 
     def _get_extra(self, record):
         for key, value in record.__dict__.items():
+            if value is None:
+                continue
             if key in self.mapping:
                 yield self.mapping[key], _json_value(value)
             elif key not in _SKIP_ATTRS:
@@ -55,6 +70,8 @@ class LogstashFormatter(logging.Formatter):
 
     def format(self, record):
         record.message = record.getMessage()
+        if record.exc_info and record.exc_text is None:
+            record.exc_text = self.formatException(record.exc_info)
 
         message = {
             '@timestamp': self._timestamp_format(record.created),
@@ -62,22 +79,18 @@ class LogstashFormatter(logging.Formatter):
         }
 
         # add default extra fields
-        message.update(self.default_extra)
+        message.update((k, _maybe_special(v)) for k, v in self.defaults.items())
 
         # add extra fields
         message.update(self._get_extra(record))
-
-        if record.exc_info:
-            exc = ''.join(traceback.format_exception(*record.exc_info))
-            message['exception'] = exc
 
         return json.dumps(message)
 
 
 class CEELogstashFormatter(LogstashFormatter):
 
-    def __init__(self, app_name, mapping=None, default_extra=None, msec=False):
-        super().__init__(mapping=mapping, default_extra=default_extra,
+    def __init__(self, app_name, mapping=None, defaults=None, msec=False):
+        super().__init__(mapping=mapping, defaults=defaults,
                          msec=msec)
         self.app_name = app_name
 

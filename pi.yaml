@@ -32,7 +32,7 @@
   network-name: logstash
   image: !DockerImage logstash:5.0.1
   volumes:
-    - !LocalPath { from: examples/conf/logstash.conf, to: /etc/logstash/conf.d/logstash.conf }
+    - !LocalPath { from: examples/logstash/logstash.conf, to: /etc/logstash/conf.d/logstash.conf }
   eval: logstash -f /etc/logstash/conf.d/logstash.conf
 
 - !Image
@@ -43,12 +43,29 @@
     - raw: apt-get update
     - raw: apt-get install -y rsyslog-elasticsearch python3-pip
     - raw: rm -rf /var/lib/apt/lists/*
-    - raw: LANG=C pip3 install --no-cache-dir --disable-pip-version-check python-logstash
+    - raw: >
+        LANG=C pip3 install
+        --no-cache-dir
+        --disable-pip-version-check
+        python-logstash
+        pygments
+        pyyaml
+
+- !ShellCommand
+  name: example-console
+  image: temp
+  eval: python3 examples/app.py
+  environ:
+    PYTHONPATH: .
+    LOGGING_CONFIG: logging.yaml
 
 - !ShellCommand
   name: example-logstash
   image: temp
-  eval: python3 -m examples.logstash
+  eval: python3 examples/app.py
+  environ:
+    PYTHONPATH: .
+    LOGGING_CONFIG: logstash/logging.yaml
 
 - !ShellCommand
   name: example-syslog

@@ -1,0 +1,40 @@
+version: 1
+
+loggers:
+  root:
+    level: INFO
+    handlers: [logstash-logs]
+  app:
+    level: DEBUG
+    handlers: [logstash-logs]
+  metrics:
+    level: INFO
+    handlers: [logstash-metrics]
+
+handlers:
+  logstash-logs: &logstash-handler
+    (): metricslog.ext.logstash.UDPMetricsHandler
+    host: logstash
+    port: 5959
+    formatter: logstash-logs
+    level: DEBUG
+  logstash-metrics:
+    <<: *logstash-handler
+    formatter: logstash-metrics
+    level: INFO
+
+formatters:
+  logstash-metrics: &logstash-formatter
+    (): metricslog.ext.formatter.LogstashFormatter
+    msec: false  # lower resolution
+    defaults:
+      app: my-app-name
+      host: <host>
+      pid: <pid>
+  logstash-logs:
+    <<: *logstash-formatter
+    msec: true  # higher resolution
+    mapping:
+      name: logger
+      message: message
+      exc_text: exception

@@ -23,7 +23,7 @@ def fail_func():
 
 
 def main():
-    log.info('First event', extra={'user': 1})
+    log.debug('First event: %s', 'login', extra={'user': 1})
     time.sleep(1)
 
     with metrics as m:
@@ -31,18 +31,22 @@ def main():
     time.sleep(3)  # metrics are flushed every 2 seconds
     metrics.ping()
 
-    log.info('Second event', extra={'user': 2})
-    time.sleep(1)
+    log.info('Second event: %s', 'logout', extra={'user': 2})
     try:
         fail_func()
     except Exception:
         log.exception('Sorry, can\'t divide by zero')
+    time.sleep(1)
 
 
 if __name__ == '__main__':
-    console_yaml = os.path.join(os.path.dirname(__file__), 'logging.yaml')
-
-    with open(console_yaml) as f:
-        logging.config.dictConfig(yaml.load(f))
+    logging_config_name = os.environ.get('LOGGING_CONFIG')
+    if logging_config_name:
+        logging_config_path = os.path.join(os.path.dirname(__file__),
+                                           logging_config_name)
+        with open(logging_config_path) as f:
+            logging.config.dictConfig(yaml.load(f))
+    else:
+        logging.basicConfig()
 
     main()
