@@ -1,3 +1,4 @@
+import sys
 import json
 import logging
 import datetime
@@ -84,12 +85,16 @@ class CEELogstashFormatter(LogstashFormatter):
         return '{}: @cee: '.format(self.app_name) + super().format(record)
 
 
+def _isatty():
+    return hasattr(sys.stderr, 'isatty') and sys.stderr.isatty()
+
+
 class ColorFormatter(logging.Formatter):
 
-    def __init__(self, isatty, msg_sep='', fmt=None, date_fmt=None,
+    def __init__(self, isatty=None, msg_sep='', fmt=None, date_fmt=None,
                  styles=None):
         super().__init__(datefmt=date_fmt)
-        self.isatty = isatty
+        self.isatty = _isatty() if isatty is None else isatty
         self.msg_sep = msg_sep
         self.fmt = fmt or DEFAULT_FMT
         self.styles = styles or DEFAULT_STYLES
@@ -98,7 +103,7 @@ class ColorFormatter(logging.Formatter):
         for key, style in self.fmt:
             procs.append((key, PROC_MAP[key](self.styles, style)))
         self._procs = procs
-        self._codes = CODES if isatty else NO_CODES
+        self._codes = CODES if self.isatty else NO_CODES
 
         self._highlight = lambda s: s
         if self.isatty:
