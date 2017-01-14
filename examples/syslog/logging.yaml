@@ -1,0 +1,37 @@
+version: 1
+
+loggers:
+  root:
+    level: INFO
+    handlers: [syslog-logs]
+  app:
+    level: DEBUG
+    handlers: [syslog-logs]
+  metrics:
+    level: INFO
+    handlers: [syslog-metrics]
+
+handlers:
+  syslog-logs: &syslog-handler
+    class: logging.handlers.SysLogHandler
+    address: /dev/log
+    facility: local3
+    formatter: syslog-logs
+    level: DEBUG
+  syslog-metrics:
+    <<: *syslog-handler
+    formatter: syslog-metrics
+    level: INFO
+
+formatters:
+  syslog-metrics: &syslog-formatter
+    (): metricslog.ext.formatter.CEELogstashFormatter
+    app_name: my-app-name
+    msec: false  # lower resolution
+  syslog-logs:
+    <<: *syslog-formatter
+    msec: true  # higher resolution
+    mapping:
+      name: logger
+      message: message
+      exc_text: exception

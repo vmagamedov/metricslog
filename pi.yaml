@@ -57,7 +57,7 @@
   eval: python3 examples/app.py
   environ:
     PYTHONPATH: .
-    LOGGING_CONFIG: logging.yaml
+    LOGGING_CONFIG: console/logging.yaml
 
 - !ShellCommand
   name: example-logstash
@@ -71,11 +71,12 @@
   name: example-syslog
   image: temp
   volumes:
-    - !LocalPath { from: examples/conf/rsyslog.conf, to: /etc/rsyslog.conf }
+    - !LocalPath { from: examples/syslog/rsyslog.conf, to: /etc/rsyslog.conf }
     - !LocalPath { from: ., to: /src }
   environ:
     PYTHONPATH: /src
+    LOGGING_CONFIG: syslog/logging.yaml
   eval: >
     /usr/sbin/rsyslogd -f /etc/rsyslog.conf -N1 &&
     /usr/sbin/rsyslogd -f /etc/rsyslog.conf &&
-    python3 -m examples.syslog
+    python3 /src/examples/app.py
