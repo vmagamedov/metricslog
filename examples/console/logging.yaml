@@ -1,0 +1,23 @@
+version: 1
+
+loggers:
+  root:
+    level: INFO
+    handlers: [stderr]
+  app:
+    level: DEBUG
+    handlers: [stderr]
+  metrics:
+    level: INFO
+    handlers: [stderr]
+
+handlers:
+  stderr:
+    class: logging.StreamHandler
+    formatter: color
+    level: DEBUG
+    stream: ext://sys.stderr
+
+formatters:
+  color:
+    (): metricslog.ext.formatter.ColorFormatter
