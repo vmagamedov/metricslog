@@ -1,0 +1,37 @@
+template: logstash-*
+settings:
+  index.query.default_field: message
+mappings:
+  _default_:
+    _all:
+      enabled: false
+    properties:
+      "@timestamp":
+        type: date
+        format: strict_date_time
+      "@version":
+        type: string
+        index: not_analyzed
+        doc_values: false
+      message:
+        type: string
+        norms: {enabled: false}
+    dynamic_templates:
+    - fields:
+        match: "*"
+        mapping:
+          type: string
+          index: not_analyzed
+          doc_values: false
+          fields:
+            key:
+              type: string
+              index: not_analyzed
+              ignore_above: 256
+            num:
+              type: double
+              ignore_malformed: true
+            time:
+              type: date
+              format: strict_date_time
+              ignore_malformed: true
