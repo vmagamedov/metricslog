@@ -2,81 +2,99 @@
   name: test
   from: !DockerImage alpine:3.4
   repository: reg.local/metricslog.test
-  provision-with: !AnsibleTasks
-    - raw: apk add --no-cache python3
-    - pip: name={{item}} executable=pip3 extra_args='--no-cache-dir'
-      with_items:
-        - pytest==3.0.4
-        - flake8==3.2.1
+  tasks:
+  - run: apk add --no-cache python3
+  - run: pip3 install --no-cache-dir {{packages|join(" ")}}
+    packages:
+    - pytest==3.0.4
+    - flake8==3.2.1
+
+- !Image
+  name: env
+  from: !DockerImage ubuntu:xenial
+  repository: reg.local/metricslog.temp
+  tasks:
+  - run: sed -i '/^deb-src/d' /etc/apt/sources.list
+  - run: sed -i 's@{{src}}@{{dst}}@' /etc/apt/sources.list
+    src: http://archive.ubuntu.com/ubuntu/
+    dst: mirror://mirrors.ubuntu.com/mirrors.txt
+  - run: apt-get update
+  - run: apt-get install -y rsyslog-elasticsearch python3
+  - run: python3 {{get_pip}}
+    get_pip: !Download 'https://bootstrap.pypa.io/get-pip.py'
+  - run: rm -rf /var/lib/apt/lists/*
+  - run: LANG=C pip3 install --no-cache-dir {{packages|join(" ")}}
+    packages:
+    - python-logstash
+    - pygments
+    - pyyaml
 
 - !Service
-  name: elasticsearch
-  image: !DockerImage elasticsearch:5.1.1
+  name: es2
+  network-name: elasticsearch
+  image: !DockerImage elasticsearch:2.4.4-alpine
   ports:
-    - !Expose { port: 9200, as: 9200 }
-    - !Expose { port: 9300, as: 9300 }
+  - !Expose { port: 9200, as: 9200 }
+  - !Expose { port: 9300, as: 9300 }
 
-- !ShellCommand
+- !Service
+  name: es5
+  network-name: elasticsearch
+  image: !DockerImage elasticsearch:5.2.2-alpine
+  ports:
+  - !Expose { port: 9200, as: 9200 }
+  - !Expose { port: 9300, as: 9300 }
+
+- !Command
   name: test
   description: Test and lint codebase
   params:
-    - !Argument {name: tests, default: metricslog}
+  - !Argument {name: tests, default: metricslog}
   image: test
-  eval: >
-    py.test -q --tb=native {{tests}}
-    && flake8 --max-line-length=80 metricslog
-    && echo "Lint - ok"
+  run: py.test -q --tb=native {{tests}}
 
-- !ShellCommand
+- !Command
+  name: lint
+  description: Test and lint codebase
+  params:
+  - !Argument {name: tests, default: metricslog}
+  image: test
+  run: flake8 --max-line-length=80 metricslog && echo OK
+
+- !Command
   name: logstash-dev
   network-name: logstash
   image: !DockerImage logstash:5.0.1
   volumes:
-    - !LocalPath { from: examples/logstash/logstash.conf, to: /etc/logstash/conf.d/logstash.conf }
-  eval: logstash -f /etc/logstash/conf.d/logstash.conf
+  - !LocalPath { from: examples/logstash/logstash.conf, to: /etc/logstash/conf.d/logstash.conf }
+  run: logstash -f /etc/logstash/conf.d/logstash.conf
 
-- !Image
-  name: temp
-  from: !DockerImage ubuntu:xenial
-  repository: reg.local/metricslog.temp
-  provision-with: !AnsibleTasks
-    - raw: apt-get update
-    - raw: apt-get install -y rsyslog-elasticsearch python3-pip
-    - raw: rm -rf /var/lib/apt/lists/*
-    - raw: >
-        LANG=C pip3 install
-        --no-cache-dir
-        --disable-pip-version-check
-        python-logstash
-        pygments
-        pyyaml
-
-- !ShellCommand
+- !Command
   name: example-console
-  image: temp
-  eval: python3 examples/app.py
+  image: env
+  run: python3 examples/app.py
   environ:
     PYTHONPATH: .
     LOGGING_CONFIG: console/logging.yaml
 
-- !ShellCommand
+- !Command
   name: example-logstash
-  image: temp
-  eval: python3 examples/app.py
+  image: env
+  run: python3 examples/app.py
   environ:
     PYTHONPATH: .
     LOGGING_CONFIG: logstash/logging.yaml
 
-- !ShellCommand
+- !Command
   name: example-syslog
-  image: temp
+  image: env
   volumes:
-    - !LocalPath { from: examples/syslog/rsyslog.conf, to: /etc/rsyslog.conf }
-    - !LocalPath { from: ., to: /src }
+  - !LocalPath { from: examples/syslog/rsyslog.conf, to: /etc/rsyslog.conf }
+  - !LocalPath { from: ., to: /src }
   environ:
     PYTHONPATH: /src
     LOGGING_CONFIG: syslog/logging.yaml
-  eval: >
+  run: >
     /usr/sbin/rsyslogd -f /etc/rsyslog.conf -N1 &&
     /usr/sbin/rsyslogd -f /etc/rsyslog.conf &&
     python3 /src/examples/app.py

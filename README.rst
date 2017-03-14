@@ -1,5 +1,5 @@
 Essentials for application metrics collection and their submission as structured
-logging.
+logs.
 
 This library also contains logging formatters to setup structured logging for
 regular application logs.
