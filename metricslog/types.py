@@ -3,11 +3,13 @@ import decimal
 
 from collections import defaultdict
 
+from .compat import with_metaclass
+
 
 UNSET = object()
 
 
-class Type(metaclass=abc.ABCMeta):
+class Type(with_metaclass(abc.ABCMeta, object)):
 
     @abc.abstractmethod
     def accept(self, visitor):
@@ -106,7 +108,7 @@ class MapMeta(abc.ABCMeta):
         return type_
 
 
-class Map(Type, metaclass=MapMeta):
+class Map(with_metaclass(MapMeta, Type)):
     __key_type__ = None
     __value_type__ = None
 
@@ -138,7 +140,7 @@ class Field:
 class RecordMeta(abc.ABCMeta):
 
     def __new__(mcs, name, bases, params):
-        cls = super().__new__(mcs, name, bases, params)
+        cls = super(RecordMeta, mcs).__new__(mcs, name, bases, params)
         field_types = {}
         for name, attr in params.items():
             if isinstance(attr, Field):
@@ -147,7 +149,7 @@ class RecordMeta(abc.ABCMeta):
         return cls
 
 
-class Record(Type, metaclass=RecordMeta):
+class Record(with_metaclass(RecordMeta, Type)):
     __field_types__ = None
 
     def __init__(self):

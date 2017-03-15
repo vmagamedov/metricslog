@@ -6,7 +6,7 @@ from .collector import Nothing, collect
 
 class Manager:
 
-    def __init__(self, metrics, *, interval_size=10, logger_name='metrics'):
+    def __init__(self, metrics, interval_size=10, logger_name='metrics'):
         self._metrics = metrics
         self._interval_size = interval_size
 

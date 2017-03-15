@@ -10,7 +10,7 @@ DEFAULT_FORMATTER = LogstashFormatter()
 class TCPMetricsHandler(TCPLogstashHandler):
 
     def __init__(self, host, port, formatter=DEFAULT_FORMATTER):
-        super().__init__(host, port)
+        super(TCPMetricsHandler, self).__init__(host, port)
         self.formatter = formatter
 
     def makePickle(self, record):
@@ -20,7 +20,7 @@ class TCPMetricsHandler(TCPLogstashHandler):
 class UDPMetricsHandler(UDPLogstashHandler):
 
     def __init__(self, host, port, formatter=DEFAULT_FORMATTER):
-        super().__init__(host, port)
+        super(UDPMetricsHandler, self).__init__(host, port)
         self.formatter = formatter
 
     def makePickle(self, record):

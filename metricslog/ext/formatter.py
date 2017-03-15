@@ -1,3 +1,5 @@
+from __future__ import division
+
 import os
 import sys
 import json
@@ -9,13 +11,15 @@ import traceback
 from operator import itemgetter
 from functools import partial
 
+from ..compat import text_type
+
 from ._colors import DEFAULT_FMT, DEFAULT_STYLES, PROC_MAP, CODES, NO_CODES
 
 
 _SKIP_ATTRS = {
     'args', 'asctime', 'created', 'exc_info', 'exc_text', 'filename',
     'funcName', 'id', 'levelname', 'levelno', 'lineno', 'module',
-    'msecs', 'msecs', 'message', 'msg', 'name', 'pathname', 'process',
+    'msecs', 'message', 'msg', 'name', 'pathname', 'process',
     'processName', 'relativeCreated', 'thread', 'threadName', 'extra',
     'stack_info',
 }
@@ -28,17 +32,13 @@ def _json_value(value):
 
 
 def _datetime_from_timestamp(timestamp):
-    return (datetime.datetime.utcfromtimestamp(timestamp)
-            .strftime('%Y-%m-%dT%H:%M:%S.000Z'))
-
-
-def _datetime_from_timestamp_msec(timestamp):
-    return (datetime.datetime.utcfromtimestamp(timestamp)
-            .strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z')
+    dt = datetime.datetime.utcfromtimestamp(timestamp)
+    return (dt.strftime('%Y-%m-%dT%H:%M:%S')
+            + '.{:03.0f}Z'.format(dt.microsecond / 1000))
 
 
 def _maybe_special(value):
-    if not isinstance(value, str):
+    if not isinstance(value, text_type):
         return value
     elif value == '<pid>':
         return os.getpid()
@@ -50,52 +50,51 @@ def _maybe_special(value):
 
 class LogstashFormatter(logging.Formatter):
 
-    def __init__(self, mapping=None, defaults=None, msec=False):
-        super().__init__()
+    def __init__(self, mapping=None, defaults=None):
+        super(LogstashFormatter, self).__init__()
         self.mapping = mapping or {}
-        self.defaults = defaults or {}
-        if msec:
-            self._timestamp_format = _datetime_from_timestamp_msec
-        else:
-            self._timestamp_format = _datetime_from_timestamp
+        self.defaults = {k: _maybe_special(v)
+                         for k, v in (defaults or {}).items()}
 
     def _get_extra(self, record):
         for key, value in record.__dict__.items():
-            if value is None:
-                continue
-            if key in self.mapping:
-                yield self.mapping[key], _json_value(value)
-            elif key not in _SKIP_ATTRS:
+            if value is not None and key not in _SKIP_ATTRS:
                 yield key, _json_value(value)
+
+    def _get_mapped(self, record):
+        for from_, to in self.mapping.items():
+            value = getattr(record, from_, None)
+            if value is not None:
+                yield to, _json_value(value)
 
     def format(self, record):
         record.message = record.getMessage()
         if record.exc_info and record.exc_text is None:
             record.exc_text = self.formatException(record.exc_info)
 
-        message = {
-            '@timestamp': self._timestamp_format(record.created),
-            '@version': '1',
-        }
+        # Note: - extra fields can not override mapped/defaults fields
+        #       - mapped/default fields can not override @* fields
 
-        # add default extra fields
-        message.update((k, _maybe_special(v)) for k, v in self.defaults.items())
-
-        # add extra fields
-        message.update(self._get_extra(record))
-
+        message = dict(self._get_extra(record))
+        message.update(self._get_mapped(record))
+        message.update(self.defaults)
+        message.update((
+            ('@timestamp', _datetime_from_timestamp(record.created)),
+            ('@version', '1'),
+        ))
         return json.dumps(message)
 
 
 class CEELogstashFormatter(LogstashFormatter):
 
-    def __init__(self, app_name, mapping=None, defaults=None, msec=False):
-        super().__init__(mapping=mapping, defaults=defaults,
-                         msec=msec)
+    def __init__(self, app_name, mapping=None, defaults=None):
+        super(CEELogstashFormatter, self).__init__(mapping=mapping,
+                                                   defaults=defaults)
         self.app_name = app_name
 
     def format(self, record):
-        return '{}: @cee: '.format(self.app_name) + super().format(record)
+        doc = super(CEELogstashFormatter, self).format(record)
+        return '{}: @cee: '.format(self.app_name) + doc
 
 
 def _isatty():
@@ -106,7 +105,7 @@ class ColorFormatter(logging.Formatter):
 
     def __init__(self, isatty=None, msg_sep='', fmt=None, date_fmt=None,
                  styles=None):
-        super().__init__(datefmt=date_fmt)
+        super(ColorFormatter, self).__init__(datefmt=date_fmt)
         self.isatty = _isatty() if isatty is None else isatty
         self.msg_sep = msg_sep
         self.fmt = fmt or DEFAULT_FMT
