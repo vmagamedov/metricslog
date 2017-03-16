@@ -4,6 +4,7 @@ import os
 import sys
 import json
 import socket
+import decimal
 import logging
 import datetime
 import traceback
@@ -24,17 +25,15 @@ _SKIP_ATTRS = {
     'stack_info',
 }
 
-_SIMPLE_TYPES = (str, bool, dict, float, int, list)
+
+def _format_datetime(value):
+    return (value.strftime('%Y-%m-%dT%H:%M:%S')
+            + '.{:03.0f}Z'.format(value.microsecond / 1000))
 
 
-def _json_value(value):
-    return value if isinstance(value, _SIMPLE_TYPES) else str(value)
-
-
-def _datetime_from_timestamp(timestamp):
-    dt = datetime.datetime.utcfromtimestamp(timestamp)
-    return (dt.strftime('%Y-%m-%dT%H:%M:%S')
-            + '.{:03.0f}Z'.format(dt.microsecond / 1000))
+def _format_timestamp(value):
+    dt = datetime.datetime.utcfromtimestamp(value)
+    return _format_datetime(dt)
 
 
 def _maybe_special(value):
@@ -48,6 +47,17 @@ def _maybe_special(value):
         return value
 
 
+def _json_default(value):
+    if isinstance(value, datetime.datetime):
+        return _format_datetime(value)
+    elif isinstance(value, decimal.Decimal):
+        # explicitly and intentionally encoding decimals as strings
+        # to avoid precision loss in the source document
+        return text_type(value)
+    else:
+        return text_type(value)
+
+
 class LogstashFormatter(logging.Formatter):
 
     def __init__(self, mapping=None, defaults=None):
@@ -59,13 +69,13 @@ class LogstashFormatter(logging.Formatter):
     def _get_extra(self, record):
         for key, value in record.__dict__.items():
             if value is not None and key not in _SKIP_ATTRS:
-                yield key, _json_value(value)
+                yield key, value
 
     def _get_mapped(self, record):
         for from_, to in self.mapping.items():
             value = getattr(record, from_, None)
             if value is not None:
-                yield to, _json_value(value)
+                yield to, value
 
     def format(self, record):
         record.message = record.getMessage()
@@ -79,10 +89,10 @@ class LogstashFormatter(logging.Formatter):
         message.update(self._get_mapped(record))
         message.update(self.defaults)
         message.update((
-            ('@timestamp', _datetime_from_timestamp(record.created)),
+            ('@timestamp', _format_timestamp(record.created)),
             ('@version', '1'),
         ))
-        return json.dumps(message)
+        return json.dumps(message, default=_json_default)
 
 
 class CEELogstashFormatter(LogstashFormatter):
@@ -135,7 +145,7 @@ class ColorFormatter(logging.Formatter):
     def _get_extra(self, record):
         for key, value in record.__dict__.items():
             if key not in _SKIP_ATTRS:
-                yield key, _json_value(value)
+                yield key, value
 
     def format(self, record):
         extra = sorted(self._get_extra(record), key=itemgetter(0))

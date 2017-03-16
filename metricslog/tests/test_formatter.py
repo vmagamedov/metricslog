@@ -1,17 +1,16 @@
 from __future__ import unicode_literals
 
 import os
-import time
 import json
 import socket
 import logging
 
+from decimal import Decimal
+from datetime import datetime
+
 import pytest
 
 from ..ext.formatter import LogstashFormatter, CEELogstashFormatter
-
-
-NOW = time.time()
 
 
 class HandlerStub(logging.Handler):
@@ -23,11 +22,21 @@ class HandlerStub(logging.Handler):
 
     def emit(self, record):
         record.created = self._timestamp
-        record.msecs = (self._timestamp - int(NOW)) * 1000
+        record.msecs = (self._timestamp - int(self._timestamp)) * 1000
         self._buffer.append(self.format(record))
 
     def logs(self):
         return self._buffer[:]
+
+
+def get_logger(name, timestamp, formatter):
+    handler = HandlerStub(timestamp, level=logging.DEBUG)
+    handler.setFormatter(formatter)
+
+    log = logging.getLogger(name)
+    log.addHandler(handler)
+    log.setLevel(logging.DEBUG)
+    return log, handler
 
 
 @pytest.mark.parametrize('timestamp, iso_timestamp', [
@@ -36,12 +45,8 @@ class HandlerStub(logging.Handler):
     (1445850000.1116111, '2015-10-26T09:00:00.112Z'),
 ])
 def test_logstash_formatter(timestamp, iso_timestamp):
-    handler = HandlerStub(timestamp, level=logging.DEBUG)
-    handler.setFormatter(LogstashFormatter())
-
-    log = logging.getLogger('does-not-matter')
-    log.addHandler(handler)
-    log.setLevel(logging.DEBUG)
+    log, handler = get_logger('does-not-matter', timestamp,
+                              LogstashFormatter())
 
     log.info('does-not-matter', extra={'pampas': 'semi'})
 
@@ -54,15 +59,10 @@ def test_logstash_formatter(timestamp, iso_timestamp):
 
 
 def test_logstash_formatter_mapping():
-    handler = HandlerStub(1445850000, level=logging.DEBUG)
-    handler.setFormatter(LogstashFormatter(mapping={
+    log, handler = get_logger('bashan', 1445850000, LogstashFormatter(mapping={
         'name': 'pleurae',
         'message': 'lansat',
     }))
-
-    log = logging.getLogger('bashan')
-    log.addHandler(handler)
-    log.setLevel(logging.DEBUG)
 
     log.info('basset-devours-manus', extra={'flushed': 'impen'})
 
@@ -77,16 +77,11 @@ def test_logstash_formatter_mapping():
 
 
 def test_logstash_formatter_defaults():
-    handler = HandlerStub(1445850000, level=logging.DEBUG)
-    handler.setFormatter(LogstashFormatter(defaults={
+    log, handler = get_logger('bashan', 1445850000, LogstashFormatter(defaults={
         'itchy': 'saws',
         'craft': '<host>',
         'colure': '<pid>',
     }))
-
-    log = logging.getLogger('does-not-matter')
-    log.addHandler(handler)
-    log.setLevel(logging.DEBUG)
 
     log.info('does-not-matter', extra={'taxicab': 'wakashu'})
 
@@ -110,12 +105,8 @@ def test_cee_formatter(timestamp, iso_timestamp):
     app_name = 'fuss'
     prefix = '{}: @cee: '.format(app_name)
 
-    handler = HandlerStub(timestamp, level=logging.DEBUG)
-    handler.setFormatter(CEELogstashFormatter(app_name))
-
-    log = logging.getLogger('does-not-matter')
-    log.addHandler(handler)
-    log.setLevel(logging.DEBUG)
+    log, handler = get_logger('bashan', timestamp,
+                              CEELogstashFormatter(app_name))
 
     log.info('does-not-matter', extra={'guff': 'noelle'})
 
@@ -126,3 +117,33 @@ def test_cee_formatter(timestamp, iso_timestamp):
     assert doc == {'@timestamp': iso_timestamp,
                    '@version': '1',
                    'guff': 'noelle'}
+
+
+def test_json_format():
+    log, handler = get_logger('bashan', 1445850000,
+                              LogstashFormatter())
+
+    unknown = object()
+
+    extra = {
+        'int_field': 111,
+        'float_field': 111.111,
+        'string_field': 'habitan',
+        'date_field': datetime(2015, 10, 26, 9, 0, 1),
+        'decimal_field': Decimal('111.111'),
+        'unknown_field': unknown,
+    }
+    expected = {
+        '@timestamp': '2015-10-26T09:00:00.000Z',
+        '@version': '1',
+        'int_field': 111,
+        'float_field': pytest.approx(111.111),
+        'string_field': 'habitan',
+        'date_field': '2015-10-26T09:00:01.000Z',
+        'decimal_field': '111.111',
+        'unknown_field': str(unknown),
+    }
+    log.info('does-not-matter', extra=extra)
+    msg, = handler.logs()
+    doc = json.loads(msg)
+    assert doc == expected
