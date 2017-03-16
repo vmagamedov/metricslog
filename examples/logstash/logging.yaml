@@ -26,14 +26,12 @@ handlers:
 formatters:
   logstash-metrics: &logstash-formatter
     (): metricslog.ext.formatter.LogstashFormatter
-    msec: false  # lower resolution
     defaults:
       app: my-app-name
       host: <host>
       pid: <pid>
   logstash-logs:
     <<: *logstash-formatter
-    msec: true  # higher resolution
     mapping:
       name: logger
       message: message

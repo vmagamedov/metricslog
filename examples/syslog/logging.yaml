@@ -27,10 +27,8 @@ formatters:
   syslog-metrics: &syslog-formatter
     (): metricslog.ext.formatter.CEELogstashFormatter
     app_name: my-app-name
-    msec: false  # lower resolution
   syslog-logs:
     <<: *syslog-formatter
-    msec: true  # higher resolution
     mapping:
       name: logger
       message: message
