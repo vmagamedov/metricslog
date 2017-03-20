@@ -49,11 +49,11 @@ and like this when sent into syslog (formatted for readability):
 
 .. code-block:: javascript
 
-    <14>app-name: @cee: {"logger": "some.app.module.name",
+    <14>app-name: @cee: {"@timestamp": "2015-10-26T09:00:00.000Z",
+                         "@version": "1",
                          "message": "As you can see, structured and formatted logs",
-                         "user": 123,
-                         "@timestamp": "2017-01-01T00:00:00.000Z",
-                         "@version": "1"}
+                         "logger": "some.app.module.name",
+                         "user": 123}
 
 .. _Logstash: https://www.elastic.co/products/logstash
 .. _Elasticsearch: https://www.elastic.co/products/elasticsearch
