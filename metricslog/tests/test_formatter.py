@@ -77,7 +77,7 @@ def test_logstash_formatter_mapping():
 
 
 def test_logstash_formatter_defaults():
-    log, handler = get_logger('bashan', 1445850000, LogstashFormatter(defaults={
+    log, handler = get_logger('any', 1445850000, LogstashFormatter(defaults={
         'itchy': 'saws',
         'craft': '<host>',
         'colure': '<pid>',
@@ -96,6 +96,23 @@ def test_logstash_formatter_defaults():
                    'colure': os.getpid()}
 
 
+def test_logstash_formatter_defaults_py2():
+    log, handler = get_logger('any', 1445850000, LogstashFormatter(defaults={
+        'oner': str('<host>'),
+        'gac': str('<pid>'),
+    }))
+
+    log.info('does-not-matter')
+
+    msg, = handler.logs()
+    doc = json.loads(msg)
+
+    assert doc == {'@timestamp': '2015-10-26T09:00:00.000Z',
+                   '@version': '1',
+                   'oner': socket.gethostname(),
+                   'gac': os.getpid()}
+
+
 @pytest.mark.parametrize('timestamp, iso_timestamp', [
     (1445850000, '2015-10-26T09:00:00.000Z'),
     (1445850000.1114111, '2015-10-26T09:00:00.111Z'),
@@ -105,8 +122,7 @@ def test_cee_formatter(timestamp, iso_timestamp):
     app_name = 'fuss'
     prefix = '{}: @cee: '.format(app_name)
 
-    log, handler = get_logger('bashan', timestamp,
-                              CEELogstashFormatter(app_name))
+    log, handler = get_logger('any', timestamp, CEELogstashFormatter(app_name))
 
     log.info('does-not-matter', extra={'guff': 'noelle'})
 
@@ -120,8 +136,7 @@ def test_cee_formatter(timestamp, iso_timestamp):
 
 
 def test_json_format():
-    log, handler = get_logger('bashan', 1445850000,
-                              LogstashFormatter())
+    log, handler = get_logger('any', 1445850000, LogstashFormatter())
 
     unknown = object()
 

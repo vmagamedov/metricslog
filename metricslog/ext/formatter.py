@@ -12,7 +12,7 @@ import traceback
 from operator import itemgetter
 from functools import partial
 
-from ..compat import text_type
+from ..compat import text_type, string_types
 
 from ._colors import DEFAULT_FMT, DEFAULT_STYLES, PROC_MAP, CODES, NO_CODES
 
@@ -37,7 +37,7 @@ def _format_timestamp(value):
 
 
 def _maybe_special(value):
-    if not isinstance(value, text_type):
+    if not isinstance(value, string_types):
         return value
     elif value == '<pid>':
         return os.getpid()
