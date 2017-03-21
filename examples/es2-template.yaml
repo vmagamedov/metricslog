@@ -22,11 +22,13 @@ mappings:
         mapping:
           type: string
           index: not_analyzed
+          analyzer: keyword
           doc_values: false
           fields:
             key:
               type: string
               index: not_analyzed
+              analyzer: keyword
               ignore_above: 256
             num:
               type: double
