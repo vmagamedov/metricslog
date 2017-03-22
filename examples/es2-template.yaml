@@ -17,6 +17,10 @@ mappings:
         type: string
         norms: {enabled: false}
     dynamic_templates:
+    - objects:
+        match_mapping_type: object
+        mapping:
+          type: object
     - fields:
         match: "*"
         mapping:
