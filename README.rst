@@ -1,10 +1,8 @@
-Essentials for application metrics collection and their submission as structured
-logs.
+Metrics collection and submission as structured logs. And all you need to setup
+structured logging for regular application logs.
 
-This library also contains logging formatters to setup structured logging for
-regular application logs.
-
-Configuration examples:
+Examples
+~~~~~~~~
 
 - ``examples/logstash`` – send structured logs directly into `Logstash`_ via UDP
   or TCP protocol for further processing using dozens of `Logstash`_ plugins,
@@ -16,6 +14,40 @@ Configuration examples:
   `Kibana`_ by using *omelasticsearch* output module;
 - ``examples/console`` – stream colored structured logs into *stderr*, Python
   tracebacks are also highlighted using `Pygments`_ library (if installed).
+
+Issues with sending logs into Elasticsearch
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Field types in Elasticsearch are static. Fields can be created dynamically, but
+it's type can't be changed afterward. This means that once you indexed
+``{"foo": 1}`` document into Elasticsearch, you wouldn't be able to index document
+``{"foo": "bar"}``, because ``foo`` field was created with ``long`` type, which
+is incompatible with ``string`` type.
+
+In order to overcome this issue, you can use sophisticated mapping template for
+Elasticsearch:
+
+- ``examples/es2-template.yaml`` - mapping template for Elasticsearch 2.x
+- ``examples/es5-template.yaml`` - mapping template for Elasticsearch 5.x
+
+These templates are designed to treat all unknown fields as ``keyword`` type,
+which can accept strings and numbers, and this field can be used for
+filtering purposes. This field is actually a multi-field, with ``key``, ``num``
+and ``time`` subfields, which can be used for aggregation and sorting purposes,
+if the indexed value is looking like numbers or timestamps.
+
+So, for example, when we indexed ``{"foo": "123"}`` document, we will be able to
+search this fields with ``foo:123`` query and we will be able to aggregate this
+field as numeric field using ``foo.num`` subfield.
+
+**Note**: there is one more limitation in Elasticsearch, which can't be fixed by
+such mapping template. Elasticseach has explicit ``object`` type, along with other
+scalar types. And they all share the same namespace in the fields mapping. This
+means, that if you indexed object into field ``foo``, you wouldn't be able to
+index any other data type into this field, only objects. So be very careful with
+what you're indexing into Elasticsearch, use objects only as namespaces with
+unique and self-describing names and **prefer flat structures with scalar types**
+instead of deeply nested objects.
 
 Installation
 ~~~~~~~~~~~~
