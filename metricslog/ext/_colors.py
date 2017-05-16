@@ -1,3 +1,6 @@
+from ..compat import text_type
+
+
 CODES = {
     'bg_black': '\x1b[40m',
     'bg_blue': '\x1b[44m',
@@ -60,7 +63,7 @@ def simple_colorizer(styles, style):
 
     def proc(data, level, codes):
         color = colors[level]
-        return codes[color] + str(data) + codes['reset']
+        return codes[color] + text_type(data) + codes['reset']
 
     return proc
 
@@ -74,8 +77,8 @@ def kv_colorizer(styles, style):
         key_color = key_colors[level]
         val_color = val_colors[level]
         return ' '.join(
-            (codes[key_color] + str(key) + '=' +
-             codes[val_color] + str(val) + codes['reset'])
+            (codes[key_color] + text_type(key) + '=' +
+             codes[val_color] + text_type(val) + codes['reset'])
             for key, val in data
         )
 

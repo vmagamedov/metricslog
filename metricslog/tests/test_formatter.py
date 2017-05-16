@@ -1,3 +1,4 @@
+# coding: utf-8
 from __future__ import unicode_literals
 
 import os
@@ -10,7 +11,9 @@ from datetime import datetime
 
 import pytest
 
+from ..ext._colors import CODES
 from ..ext.formatter import LogstashFormatter, CEELogstashFormatter
+from ..ext.formatter import ColorFormatter
 
 
 class HandlerStub(logging.Handler):
@@ -162,3 +165,69 @@ def test_json_format():
     msg, = handler.logs()
     doc = json.loads(msg)
     assert doc == expected
+
+
+def test_color_formatter():
+    log, handler = get_logger('any', 1445850000, ColorFormatter(False))
+
+    unknown = object()
+
+    extra = {
+        'a': datetime(2015, 10, 26, 9, 0, 1),
+        'b': 111,
+        'c': 222.222,
+        'd': Decimal('333.333'),
+        'e': 'habitan',
+        u'f': u'dure-юникод',
+        'g': unknown,
+    }
+
+    log.info(u'does-not-matter-юникод', extra=extra)
+    msg, = handler.logs()
+
+    # `extra` items are sorted by ColorFormatter
+    assert msg == (
+        u'2015-10-26 11:00:00,000 INFO any does-not-matter-юникод '
+        u'a=2015-10-26 09:00:01 '
+        u'b=111 '
+        u'c=222.222 '
+        u'd=333.333 '
+        u'e=habitan '
+        u'f=dure-юникод '
+        u'g={!r}'
+        .format(unknown)
+    )
+
+
+def test_color_formatter_tty():
+    log, handler = get_logger('any', 1445850000, ColorFormatter(True))
+
+    unknown = object()
+
+    extra = {
+        'a': datetime(2015, 10, 26, 9, 0, 1),
+        'b': 111,
+        'c': 222.222,
+        'd': Decimal('333.333'),
+        'e': 'habitan',
+        u'f': u'dure-юникод',
+        'g': unknown,
+    }
+
+    log.info(u'does-not-matter-юникод', extra=extra)
+    msg, = handler.logs()
+
+    # `extra` items are sorted by ColorFormatter
+    assert msg == (
+        u'{white}2015-10-26 11:00:00,000{reset} '
+        u'{green}INFO{reset} {white}any{reset} '
+        u'{white}does-not-matter-юникод{reset} '
+        u'{cyan}a={white}2015-10-26 09:00:01{reset} '
+        u'{cyan}b={white}111{reset} '
+        u'{cyan}c={white}222.222{reset} '
+        u'{cyan}d={white}333.333{reset} '
+        u'{cyan}e={white}habitan{reset} '
+        u'{cyan}f={white}dure-юникод{reset} '
+        u'{cyan}g={white}{0!r}{reset}'
+        .format(unknown, **CODES)
+    )
