@@ -231,3 +231,23 @@ def test_color_formatter_tty():
         u'{cyan}g={white}{0!r}{reset}'
         .format(unknown, **CODES)
     )
+
+
+@pytest.mark.parametrize('extra_only', [{'foo'}, {'bar'}])
+def test_extra_only(extra_only):
+    log, handler = get_logger('foo.inner', 1445850000,
+                              LogstashFormatter(extra_only=extra_only))
+    log.info('message', extra={'a': 1})
+    msg, = handler.logs()
+    doc = json.loads(msg)
+    if extra_only == {'foo'}:
+        assert doc == {
+            '@timestamp': '2015-10-26T09:00:00.000Z',
+            '@version': '1',
+            'a': 1,
+        }
+    else:  # bar
+        assert doc == {
+            '@timestamp': '2015-10-26T09:00:00.000Z',
+            '@version': '1',
+        }

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='MetricsLog',
-    version='0.1.2',
+    version='0.1.3',
     description='Send metrics as structured logs',
     author='Vladimir Magamedov',
     author_email='vladimir@magamedov.com',

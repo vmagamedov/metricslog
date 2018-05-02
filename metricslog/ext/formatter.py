@@ -60,13 +60,23 @@ def _json_default(value):
 
 class LogstashFormatter(logging.Formatter):
 
-    def __init__(self, mapping=None, defaults=None):
+    def __init__(self, mapping=None, defaults=None, extra_only=None):
         super(LogstashFormatter, self).__init__()
         self.mapping = mapping or {}
         self.defaults = {k: _maybe_special(v)
                          for k, v in (defaults or {}).items()}
 
+        self.extra_only = set(extra_only or [])
+        self.extra_only_prefixes = tuple('{}.'.format(l)
+                                         for l in self.extra_only)
+
     def _get_extra(self, record):
+        if self.extra_only:
+            if (
+                record.name not in self.extra_only
+                and not record.name.startswith(self.extra_only_prefixes)
+            ):
+                return
         for key, value in record.__dict__.items():
             if value is not None and key not in _SKIP_ATTRS:
                 yield key, value
@@ -97,9 +107,10 @@ class LogstashFormatter(logging.Formatter):
 
 class CEELogstashFormatter(LogstashFormatter):
 
-    def __init__(self, app_name, mapping=None, defaults=None):
+    def __init__(self, app_name, mapping=None, defaults=None, extra_only=None):
         super(CEELogstashFormatter, self).__init__(mapping=mapping,
-                                                   defaults=defaults)
+                                                   defaults=defaults,
+                                                   extra_only=extra_only)
         self.app_name = app_name
 
     def format(self, record):
